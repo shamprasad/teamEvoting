@@ -12,12 +12,8 @@ class Block_Phase_One:
 
 class Block_Phase_Two:
 
-    def __init__(self, voter, candidate):
-        self.voter = voter
+    def __init__(self, candidate):
         self.candidate = candidate
-
-    def get_voter(self):
-        return self.voter
 
     def get_candidate(self):
         return self.candidate

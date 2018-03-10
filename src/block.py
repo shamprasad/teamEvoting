@@ -20,5 +20,8 @@ class Block_Phase_Two:
 
 class Block_Phase_Three:
 
-    def __init__(self):
-        pass
+    def __init__(self, tally):
+        self.tally = tally
+
+    def get_tally(self):
+        return self.tally

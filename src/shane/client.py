@@ -308,11 +308,8 @@ def tcp_out_daemon(tcp_sock, peers):
             conn.send(pickle.dumps(blockchains))
 
     while True:
-        try:
-            conn, addr = tcp_sock.accept()
-            Process(target = handle_tcp_out, args = (conn,)).start()
-        except SocketError:
-            pass
+        conn, addr = tcp_sock.accept()
+        Process(target = handle_tcp_out, args = (conn,)).start()
 
 
 def tcp_in_daemon(peers):

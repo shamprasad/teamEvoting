@@ -1,18 +1,11 @@
 from multiprocessing import Process, Lock
-
-
-
+from blockchain import Blockchain
 
 def main():
-    a = 1
-    b = 2
-    print a
-    print b
-
-    def sum():
-        return a+b
-
-    print sum()
+    return Blockchain(None)
 
 if __name__ == '__main__':
-    main()
+    if main():
+        print 'hello'
+    else:
+        print 'goodbye'

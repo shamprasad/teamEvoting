@@ -6,7 +6,7 @@ from random import randint
 class Blockchain:
 
     def __init__(self, block):
-        self.id = randint(0, 10000)
+        self.id = randint(1000, 9999)
         self.size = 1
         self.chain = [block]
 

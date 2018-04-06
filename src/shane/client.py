@@ -9,6 +9,7 @@ from multiprocessing import Process, Lock
 from threading import Thread, Event
 import socket
 import time
+from select import select
 
 from blockchain import Blockchain
 from block import Block_Phase_One, Block_Phase_Two, Block_Phase_Three
@@ -17,15 +18,13 @@ from block import Block_Phase_One, Block_Phase_Two, Block_Phase_Three
 blockchain_locks = [Lock(), Lock(), Lock()]
 
 DESIRED_VOTERS = ["Shane", "Ankur", "Sham"]
-
 DESIRED_CANDIDATES = ["Shane", "Ankur", "Sham"]
 CHOSEN_CANDIDATES = ["Shane", "Ankur", "Sham"]
-
-BROADCAST_PORT = 4156
 
 # Select candidates
 def phase_one(voter):
     # Find all saved phase one blockchains
+    blockchain_locks[0].acquire()
     file_names = glob.glob("../blockchains/phase_one/blockchain*.pkl")
     # Create block with desired candidates
     block = Block_Phase_One(DESIRED_CANDIDATES, DESIRED_VOTERS, voter)
@@ -34,8 +33,8 @@ def phase_one(voter):
         # Create blockchain with desired candidates
         blockchain = Blockchain(block)
         # Save blockchain to file with appended random number
-        id = blockchain.get_id()
-        file_name = "../blockchains/phase_one/blockchain{}.pkl".format(id)
+        ident = blockchain.get_id()
+        file_name = "../blockchains/phase_one/blockchain{}.pkl".format(ident)
         with open(file_name, 'wb') as blockchain_file:
             pickle.dump(blockchain, blockchain_file)
     # If blockchains are found
@@ -50,28 +49,27 @@ def phase_one(voter):
                 match = True
                 blockchain = pickle.load(blockchain_file)
                 # Cycle through each block in blockchain
-                for block in blockchain.get_chain():
-                    voter_dict[block.get_voter()] += 1
+                for blck in blockchain.get_chain():
                     # Compare candidates with desired candidates
-                    for candidate in block.get_candidates():
+                    for candidate in blck.get_candidates():
                         if candidate not in DESIRED_CANDIDATES or not match:
                             match = False
                             break
                     for candidate in DESIRED_CANDIDATES:
-                        if candidate not in block.get_candidates() or not match:
+                        if candidate not in blck.get_candidates() or not match:
                             match = False
                             break
                     # Compare voters with desired voters
-                    for voter in block.get_voters():
+                    for voter in blck.get_voters():
                         if voter not in DESIRED_VOTERS or not match:
                             match = False
                             break
                     for voter in DESIRED_VOTERS:
-                        if voter not in block.get_voters() or not match:
+                        if voter not in blck.get_voters() or not match:
                             match = False
                             break
                     # Verify voter is a desired voter
-                    if block.get_voter() not in DESIRED_VOTERS:
+                    if blck.get_voter() not in DESIRED_VOTERS:
                         match = False
                     if not match:
                         break
@@ -102,6 +100,88 @@ def phase_one(voter):
             # Write blockchain to file
             with open(largest_file_name, 'wb') as blockchain_file:
                 pickle.dump(blockchain, blockchain_file)
+    blockchain_locks[0].release()
+    voters = {}
+    for voter in DESIRED_VOTERS:
+        voters[voter] = False
+    for block in blockchain.get_chain():
+        voters[block.get_voter()] = True
+    for voter in voters:
+        if not voters[voter]:
+            return None
+    return blockchain
+
+def get_phase_one_blockchain():
+    # Find all saved phase one blockchains
+    blockchain_locks[0].acquire()
+    file_names = glob.glob("../blockchains/phase_one/blockchain*.pkl")
+    # If no phase one blockchains found
+    if len(file_names) == 0:
+        # Save blockchain to file with appended random number
+        return None
+    # If blockchains are found
+    else:
+        # Search for largest blockchain with desired candidates
+        largest_chain_size = 0
+        largest_file_name = ""
+        # Cycle through all blockchains
+        for file_name in file_names:
+            # View blockchain
+            with open(file_name, 'rb') as blockchain_file:
+                match = True
+                blockchain = pickle.load(blockchain_file)
+                # Cycle through each block in blockchain
+                for blck in blockchain.get_chain():
+                    # Compare candidates with desired candidates
+                    for candidate in blck.get_candidates():
+                        if candidate not in DESIRED_CANDIDATES or not match:
+                            match = False
+                            break
+                    for candidate in DESIRED_CANDIDATES:
+                        if candidate not in blck.get_candidates() or not match:
+                            match = False
+                            break
+                    # Compare voters with desired voters
+                    for voter in blck.get_voters():
+                        if voter not in DESIRED_VOTERS or not match:
+                            match = False
+                            break
+                    for voter in DESIRED_VOTERS:
+                        if voter not in blck.get_voters() or not match:
+                            match = False
+                            break
+                    # Verify voter is a desired voter
+                    if blck.get_voter() not in DESIRED_VOTERS:
+                        match = False
+                    if not match:
+                        break
+                # If candidates don't match desired candidates,
+                # then move to next blockchain
+                if match == False:
+                    match = True
+                # If blockchain matches desired candidates and is larger than
+                # prior blockchain which matches desired candidates
+                elif blockchain.get_size() > largest_chain_size:
+                    largest_file_name = file_name
+                    largest_chain_size = blockchain.get_size()
+        # If no blockchains with candidates that match desired candidates
+        if largest_chain_size == 0:
+            return None
+        # If blockchain is found with candidates matching desired candidates
+        else:
+            # Append desired candidates to blockchain
+            with open(largest_file_name, 'rb') as blockchain_file:
+                blockchain = pickle.load(blockchain_file)
+    blockchain_locks[0].release()
+    voters = {}
+    for voter in DESIRED_VOTERS:
+        voters[voter] = False
+    for block in blockchain.get_chain():
+        voters[block.get_voter()] = True
+    for voter in voters:
+        if not voters[voter]:
+            return None
+    return blockchain
 
 # Vote for favorite candidate among desired candidates
 def phase_two():
@@ -440,7 +520,6 @@ def sync_peers(peers, tcp_server_addr):
             peers.append(peer)
     except socket.timeout, e:
         pass
-    print peers
 
 def client_handler(tcp_client_sock):
     data = tcp_client_sock.recv(1024)
@@ -495,20 +574,56 @@ def bc_daemon(event):
 
 # Main function
 def main():
+    file_names = glob.glob("../blockchains/phase_one/blockchain*.pkl")
+    for file_name in file_names:
+        os.remove(file_name)
+    file_names = glob.glob("../blockchains/phase_two/blockchain*.pkl")
+    for file_name in file_names:
+        os.remove(file_name)
+    file_names = glob.glob("../blockchains/phase_three/blockchain*.pkl")
+    for file_name in file_names:
+        os.remove(file_name)
+
     try:
         event = Event()
         # Start daemon process for updating most recent blockchains from peers
         bc_daemon_p = Thread(target=bc_daemon, args=(event,))
         bc_daemon_p.start()
+        # while True:
+        #     time.sleep(1)
+
+
         while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
+            voter = raw_input("Enter voter's name: ")
+            if voter in DESIRED_VOTERS:
+                blockchain = phase_one(voter)
+                if blockchain:
+                    print "Phase one complete."
+                    print "Candidates:", blockchain.get_chain()[0].get_candidates()
+                    # time.sleep(60)
+                    break
+            elif voter == "check":
+                blockchain = get_phase_one_blockchain()
+                if blockchain:
+                    print "Phase one complete."
+                    print "Candidates:", blockchain.get_chain()[0].get_candidates()
+                    # time.sleep(60)
+                    break
+            else:
+                print "Unauthorized voter."
+
+
+    except (KeyboardInterrupt, Exception), e:
+        print e
         event.set()
         bc_daemon_p.join()
-        return
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt, e:
+        event.set()
+        bc_daemon_p.join()
 
 if __name__ == '__main__':
     main()
-    # phase_one()
-    # phase_two()
-    # phase_three()

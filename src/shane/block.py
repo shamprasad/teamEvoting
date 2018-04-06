@@ -5,17 +5,17 @@ class Block_Phase_One:
 
     def __init__(self, candidates, voters, voter):
         self.candidates = candidates
-        self.voter = voter
         self.voters = voters
+        self.voter = voter
 
     def get_candidates(self):
         return self.candidates
 
-    def get_voter(self):
-        return self.voter
-
     def get_voters(self):
         return self.voters
+
+    def get_voter(self):
+        return self.voter
 
 
 class Block_Phase_Two:

@@ -149,12 +149,12 @@
 % *** GRAPHICS RELATED PACKAGES ***
 %
 \ifCLASSINFOpdf
-  % \usepackage[pdftex]{graphicx}
-  % declare the path(s) where your graphic files are
-  % \graphicspath{{../pdf/}{../jpeg/}}
-  % and their extensions so you won't have to specify these with
-  % every instance of \includegraphics
-  % \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+  \usepackage[pdftex]{graphicx}
+   %declare the path(s) where your graphic files are
+   \graphicspath{{../img/}}
+   %and their extensions so you won't have to specify these with
+   %every instance of \includegraphics
+   \DeclareGraphicsExtensions{.pdf,.jpg,.png}
 \else
   % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
   % will default to the driver specified in the system graphics.cfg if no
@@ -808,7 +808,12 @@ Phase 2 consists of the voting process. The peers will cast their votes into the
 
 \subsection{Phase 3}
 Phase 3 consists of tallying the votes. The peers will attempt to acquire the final accepted blockchain by comparing their versions of the blockchain with their peers and accepting the longest blockchain. The peers will tally the votes and append their tally to the end of the blockchain. If a peer’s tally doesn’t match the tally of their peers’, they will fork the blockchain and append their tally to the fork. If their tally does match their peers’ they will append their tally to their peers’ blockchain. As usual the longest blockchain will be chosen. The tally of the longest blockchain will be the official result to the poll.
-
+\begin{figure}
+    \centering
+    \includegraphics{img/Flowdiagram.jpg}
+    \caption{Evoting phases}
+    \label{fig:flow_diagram}
+\end{figure}{}
 \subsection{Feature support}
 Some initial thoughts for the design of the protocol to ensure the features explained in the motivation section are met are listed below.
 

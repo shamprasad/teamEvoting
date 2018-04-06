@@ -5,7 +5,8 @@ import glob
 import cPickle as pickle
 import os
 from random import randint
-from multiprocessing import Process, Lock, Pipe
+from multiprocessing import Process, Lock
+from threading import Thread, Event
 import socket
 import time
 
@@ -263,240 +264,251 @@ def phase_three():
     for block in blockchain.get_chain():
         print block.get_tally()
 
+def get_blockchains(peer):
+    tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    tcp_sock.settimeout(5)
+    try:
+        tcp_sock.connect(peer)
+        tcp_sock.send('request blockchains')
+        data = tcp_sock.recv(10240)
+        bytes_recv = sys.getsizeof(data)
+        # print bytes_recv
+        tcp_sock.shutdown(socket.SHUT_RDWR)
+        tcp_sock.close()
+    except (socket.timeout, socket.error), e:
+        return
+    # Deserialize blockchains into dictionary
+    try:
+        new_blockchains = pickle.loads(data)
+    except pickle.UnpicklingError:
+        pass
+    # Acquire lock on phase one blockchains
+    blockchain_locks[0].acquire()
+    filed_blockchains = glob.glob("../blockchains/phase_one/blockchain*.pkl")
+    # For each blockchain received from peer
+    for new_blockchain in new_blockchains['phase_one'][:]:
+        # For each blockchain saved locally
+        for filed_blockchain in filed_blockchains:
+            # Boolean for determining to replace local blockchain
+            save = False
+            with open(filed_blockchain, 'rb') as blockchain_file:
+                blockchain = pickle.load(blockchain_file)
+                # If blockchains have same id
+                if new_blockchain.get_id() == blockchain.get_id():
+                    # Remove blockchain from dictionary
+                    new_blockchains['phase_one'].remove(new_blockchain)
+                    # If new blockchain is larger than local blockchain
+                    # Then set boolean to replace local blockchain
+                    if new_blockchain.get_size() > blockchain.get_size():
+                        save = True
+            # If boolean is set to replace local blockchain
+            # Then replace local blockchain with new blockchain
+            if save:
+                with open(filed_blockchain, 'wb') as blockchain_file:
+                    pickle.dump(new_blockchain, blockchain_file)
+                save = False
+    # Save all new phase one blockchains
+    for new_blockchain in new_blockchains['phase_one']:
+        id = new_blockchain.get_id()
+        file_name = "../blockchains/phase_one/blockchain{}.pkl".format(id)
+        with open(file_name, 'wb') as blockchain_file:
+            pickle.dump(new_blockchain, blockchain_file)
+    # Release lock on phase one blockchains
+    blockchain_locks[0].release()
+    # Acquire lock on phase two blockchains
+    blockchain_locks[1].acquire()
+    filed_blockchains = glob.glob("../blockchains/phase_two/blockchain*.pkl")
+    # For each blockchain received from peer
+    for new_blockchain in new_blockchains['phase_two'][:]:
+        # For each blockchain saved locally
+        for filed_blockchain in filed_blockchains:
+            # Boolean for determining to replace local blockchain
+            save = False
+            with open(filed_blockchain, 'rb') as blockchain_file:
+                blockchain = pickle.load(blockchain_file)
+                # If blockchains have same id
+                if new_blockchain.get_id() == blockchain.get_id():
+                    # Remove blockchain from dictionary
+                    new_blockchains['phase_two'].remove(new_blockchain)
+                    # If new blockchain is larger than local blockchain
+                    # Then set boolean to replace local blockchain
+                    if new_blockchain.get_size() > blockchain.get_size():
+                        save = True
+            # If boolean is set to replace local blockchain
+            # Then replace local blockchain with new blockchain
+            if save:
+                with open(filed_blockchain, 'wb') as blockchain_file:
+                    pickle.dump(new_blockchain, blockchain_file)
+                save = False
+    # Save all new phase two blockchains
+    for new_blockchain in new_blockchains['phase_two']:
+        id = new_blockchain.get_id()
+        file_name = "../blockchains/phase_two/blockchain{}.pkl".format(id)
+        with open(file_name, 'wb') as blockchain_file:
+            pickle.dump(new_blockchain, blockchain_file)
+    # Release lock on phase two blockchains
+    blockchain_locks[1].release()
+    # Acquire lock on phase three blockchains
+    blockchain_locks[2].acquire()
+    filed_blockchains = glob.glob("../blockchains/phase_three/blockchain*.pkl")
+    # For each blockchain received from peer
+    for new_blockchain in new_blockchains['phase_three'][:]:
+        # For each blockchain saved locally
+        for filed_blockchain in filed_blockchains:
+            # Boolean for determining to replace local blockchain
+            save = False
+            with open(filed_blockchain, 'rb') as blockchain_file:
+                blockchain = pickle.load(blockchain_file)
+                # If blockchains have same id
+                if new_blockchain.get_id() == blockchain.get_id():
+                    # Remove blockchain from dictionary
+                    new_blockchains['phase_three'].remove(new_blockchain)
+                    # If new blockchain is larger than local blockchain
+                    # Then set boolean to replace local blockchain
+                    if new_blockchain.get_size() > blockchain.get_size():
+                        save = True
+            # If boolean is set to replace local blockchain
+            # Then replace local blockchain with new blockchain
+            if save:
+                with open(filed_blockchain, 'wb') as blockchain_file:
+                    pickle.dump(new_blockchain, blockchain_file)
+                save = False
+    # Save all new phase three blockchains
+    for new_blockchain in new_blockchains['phase_three']:
+        id = new_blockchain.get_id()
+        file_name = "../blockchains/phase_three/blockchain{}.pkl".format(id)
+        with open(file_name, 'wb') as blockchain_file:
+            pickle.dump(new_blockchain, blockchain_file)
+    # Release lock on phase three blockchains
+    blockchain_locks[2].release()
 
-def tcp_out_daemon(tcp_sock, peers):
+def send_blockchains(tcp_client_sock):
+    # Prepare dictionary for sending blockchains
+    blockchains = {'phase_one': [],
+                   'phase_two': [],
+                   'phase_three': []}
+    # Acquire lock on phase one blockchains
+    blockchain_locks[0].acquire()
+    # Load all phase one blockchains into dictionary
+    phase_one_bc = glob.glob("../blockchains/phase_one/blockchain*.pkl")
+    if len(phase_one_bc) > 0:
+        for bc in phase_one_bc:
+            with open(bc, 'rb') as blockchain_file:
+                blockchains['phase_one'].append(pickle.load(blockchain_file))
+    # Release lock on phase one blockchains
+    blockchain_locks[0].release()
+    # Acquire lock on phase two blockchains
+    blockchain_locks[1].acquire()
+    # Load all phase two blockchains into dictionary
+    phase_two_bc = glob.glob("../blockchains/phase_two/blockchain*.pkl")
+    if len(phase_two_bc) > 0:
+        for bc in phase_two_bc:
+            with open(bc, 'rb') as blockchain_file:
+                blockchains['phase_two'].append(pickle.load(blockchain_file))
+    # Release lock on phase two blockchains
+    blockchain_locks[1].release()
+    # Acquire lock on phase three blockchains
+    blockchain_locks[2].acquire()
+    # Load all phase three blockchains into dictionary
+    phase_three_bc = glob.glob("../blockchains/phase_three/blockchain*.pkl")
+    if len(phase_three_bc) > 0:
+        for bc in phase_three_bc:
+            with open(bc, 'rb') as blockchain_file:
+                blockchains['phase_three'].append(pickle.load(blockchain_file))
+    # Release lock on phase three blockchains
+    blockchain_locks[2].release()
+    # Send blockchains to peer who requested
+    try:
+        bytes_sent = tcp_client_sock.send(pickle.dumps(blockchains))
+        # print bytes_sent
+    except socket.error, e:
+        pass
 
-    def handle_tcp_out(conn):
-        FIND_BLOCKCHAIN = 'blockchains please'
-        data = conn.recv(1024)
-        if data == FIND_BLOCKCHAIN:
-            # Prepare dictionary for sending blockchains
-            blockchains = {'phase_one': [],
-                           'phase_two': [],
-                           'phase_three': []}
-            # Acquire lock on phase one blockchains
-            blockchain_locks[0].acquire()
-            # Load all phase one blockchains into dictionary
-            phase_one_bc = glob.glob("../blockchains/phase_one/blockchain*.pkl")
-            if len(phase_one_bc) > 0:
-                for bc in phase_one_bc:
-                    with open(bc, 'rb') as blockchain_file:
-                        blockchains['phase_one'].append(pickle.load(blockchain_file))
-            # Release lock on phase one blockchains
-            blockchain_locks[0].release()
-            # Acquire lock on phase two blockchains
-            blockchain_locks[1].acquire()
-            # Load all phase two blockchains into dictionary
-            phase_two_bc = glob.glob("../blockchains/phase_two/blockchain*.pkl")
-            if len(phase_two_bc) > 0:
-                for bc in phase_two_bc:
-                    with open(bc, 'rb') as blockchain_file:
-                        blockchains['phase_two'].append(pickle.load(blockchain_file))
-            # Release lock on phase two blockchains
-            blockchain_locks[1].release()
-            # Acquire lock on phase three blockchains
-            blockchain_locks[2].acquire()
-            # Load all phase three blockchains into dictionary
-            phase_three_bc = glob.glob("../blockchains/phase_three/blockchain*.pkl")
-            if len(phase_three_bc) > 0:
-                for bc in phase_three_bc:
-                    with open(bc, 'rb') as blockchain_file:
-                        blockchains['phase_three'].append(pickle.load(blockchain_file))
-            # Release lock on phase three blockchains
-            blockchain_locks[2].release()
-            # Send blockchains to peer who requested
-            conn.send(pickle.dumps(blockchains))
-
-    while True:
-        conn, addr = tcp_sock.accept()
-        Process(target = handle_tcp_out, args = (conn,)).start()
-
-
-def tcp_in_daemon(peers):
-    FIND_BLOCKCHAIN = 'blockchains please'
-    while True:
+def sync_peers(peers, tcp_server_addr):
+    tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    tcp_sock.settimeout(5)
+    try:
+        tcp_sock.connect(('localhost', 4156))
+        msg = pickle.dumps(['request peers', tcp_server_addr])
+        tcp_sock.send(msg)
+        data = tcp_sock.recv(1024)
         for peer in peers[:]:
-            try:
-                tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                tcp_sock.connect(peer)
-                tcp_sock.send(FIND_BLOCKCHAIN)
-                data = tcp_sock.recv(10240)
-            except socket.error:
-                break
+            peers.remove(peer)
+        for peer in pickle.loads(data):
+            peers.append(peer)
+    except socket.timeout, e:
+        pass
+    print peers
 
-            # Deserialize blockchains into dictionary
-            try:
-                new_blockchains = pickle.loads(data)
-            except pickle.UnpicklingError:
-                pass
-            # Acquire lock on phase one blockchains
-            blockchain_locks[0].acquire()
-            filed_blockchains = glob.glob("../blockchains/phase_one/blockchain*.pkl")
-            # For each blockchain received from peer
-            for new_blockchain in new_blockchains['phase_one'][:]:
-                # For each blockchain saved locally
-                for filed_blockchain in filed_blockchains:
-                    # Boolean for determining to replace local blockchain
-                    save = False
-                    with open(filed_blockchain, 'rb') as blockchain_file:
-                        blockchain = pickle.load(blockchain_file)
-                        # If blockchains have same id
-                        if new_blockchain.get_id() == blockchain.get_id():
-                            # Remove blockchain from dictionary
-                            new_blockchains['phase_one'].remove(new_blockchain)
-                            # If new blockchain is larger than local blockchain
-                            # Then set boolean to replace local blockchain
-                            if new_blockchain.get_size() > blockchain.get_size():
-                                save = True
-                    # If boolean is set to replace local blockchain
-                    # Then replace local blockchain with new blockchain
-                    if save:
-                        with open(filed_blockchain, 'wb') as blockchain_file:
-                            pickle.dump(new_blockchain, blockchain_file)
-                        save = False
-            # Save all new phase one blockchains
-            for new_blockchain in new_blockchains['phase_one']:
-                id = new_blockchain.get_id()
-                file_name = "../blockchains/phase_one/blockchain{}.pkl".format(id)
-                with open(file_name, 'wb') as blockchain_file:
-                    pickle.dump(new_blockchain, blockchain_file)
-            # Release lock on phase one blockchains
-            blockchain_locks[0].release()
-            # Acquire lock on phase two blockchains
-            blockchain_locks[1].acquire()
-            filed_blockchains = glob.glob("../blockchains/phase_two/blockchain*.pkl")
-            # For each blockchain received from peer
-            for new_blockchain in new_blockchains['phase_two'][:]:
-                # For each blockchain saved locally
-                for filed_blockchain in filed_blockchains:
-                    # Boolean for determining to replace local blockchain
-                    save = False
-                    with open(filed_blockchain, 'rb') as blockchain_file:
-                        blockchain = pickle.load(blockchain_file)
-                        # If blockchains have same id
-                        if new_blockchain.get_id() == blockchain.get_id():
-                            # Remove blockchain from dictionary
-                            new_blockchains['phase_two'].remove(new_blockchain)
-                            # If new blockchain is larger than local blockchain
-                            # Then set boolean to replace local blockchain
-                            if new_blockchain.get_size() > blockchain.get_size():
-                                save = True
-                    # If boolean is set to replace local blockchain
-                    # Then replace local blockchain with new blockchain
-                    if save:
-                        with open(filed_blockchain, 'wb') as blockchain_file:
-                            pickle.dump(new_blockchain, blockchain_file)
-                        save = False
-            # Save all new phase two blockchains
-            for new_blockchain in new_blockchains['phase_two']:
-                id = new_blockchain.get_id()
-                file_name = "../blockchains/phase_two/blockchain{}.pkl".format(id)
-                with open(file_name, 'wb') as blockchain_file:
-                    pickle.dump(new_blockchain, blockchain_file)
-            # Release lock on phase two blockchains
-            blockchain_locks[1].release()
-            # Acquire lock on phase three blockchains
-            blockchain_locks[2].acquire()
-            filed_blockchains = glob.glob("../blockchains/phase_three/blockchain*.pkl")
-            # For each blockchain received from peer
-            for new_blockchain in new_blockchains['phase_three'][:]:
-                # For each blockchain saved locally
-                for filed_blockchain in filed_blockchains:
-                    # Boolean for determining to replace local blockchain
-                    save = False
-                    with open(filed_blockchain, 'rb') as blockchain_file:
-                        blockchain = pickle.load(blockchain_file)
-                        # If blockchains have same id
-                        if new_blockchain.get_id() == blockchain.get_id():
-                            # Remove blockchain from dictionary
-                            new_blockchains['phase_three'].remove(new_blockchain)
-                            # If new blockchain is larger than local blockchain
-                            # Then set boolean to replace local blockchain
-                            if new_blockchain.get_size() > blockchain.get_size():
-                                save = True
-                    # If boolean is set to replace local blockchain
-                    # Then replace local blockchain with new blockchain
-                    if save:
-                        with open(filed_blockchain, 'wb') as blockchain_file:
-                            pickle.dump(new_blockchain, blockchain_file)
-                        save = False
-            # Save all new phase three blockchains
-            for new_blockchain in new_blockchains['phase_three']:
-                id = new_blockchain.get_id()
-                file_name = "../blockchains/phase_three/blockchain{}.pkl".format(id)
-                with open(file_name, 'wb') as blockchain_file:
-                    pickle.dump(new_blockchain, blockchain_file)
-            # Release lock on phase three blockchains
-            blockchain_locks[2].release()
+def client_handler(tcp_client_sock):
+    data = tcp_client_sock.recv(1024)
+    if data == 'request blockchains':
+        send_blockchains(tcp_client_sock)
+    elif data == 'hello peer':
+        tcp_client_sock.send('hello peer')
+    tcp_client_sock.shutdown(socket.SHUT_RDWR)
+    tcp_client_sock.close()
 
-
-
-# Daemon for synchronizing blockchains
-def udp_daemon():
-    FIND_PEER = 'hello world'
-    FOUND_PEER = 'hello peer'
-
-    udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    udp_sock.settimeout(5)
-
-    tcp_out_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp_out_sock.bind(('', randint(50000, 60000)))
-    tcp_addr = tcp_out_sock.getsockname()
-
-    find_data = [FIND_PEER, tcp_addr]
-    find_data = pickle.dumps(find_data)
-    udp_sock.sendto(find_data, ('<broadcast>', BROADCAST_PORT))
-
+# Daemon for finding peers
+def bc_daemon(event):
     peers = []
+    threads = []
+    tcp_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    tcp_server_sock.settimeout(5)
+    tcp_server_sock.bind(('localhost', randint(10000, 19999)))
+    tcp_server_addr = tcp_server_sock.getsockname()
+    tcp_server_sock.listen(5)
+
+    timer = time.time()
 
     while True:
         try:
-            data, addr = udp_sock.recvfrom(1024)
-            data = pickle.loads(data)
-            if data[0] == FOUND_PEER:
-                if data[1] not in peers:
-                    peers.append(data[1])
-        except socket.timeout:
-            break
-    print peers
+            tcp_client_sock, client_addr = tcp_server_sock.accept()
+            threads.append(Thread(target=client_handler,
+                                  args=(tcp_client_sock,)))
+            threads[-1].start()
+        except socket.timeout, e:
+            pass
 
-    tcp_out_sock.listen(5)
-    tcp_out_p = Process(target = tcp_out_daemon, args = (tcp_out_sock, peers))
-    tcp_out_p.start()
+        if timer+5 <= time.time():
+            timer += 5
+            threads.append(Thread(target=sync_peers, args=(peers,
+                                                           tcp_server_addr)))
+            threads[-1].start()
+            for peer in peers[:]:
+                if peer != tcp_server_addr:
+                    threads.append(Thread(target=get_blockchains,
+                                          args=(peer,)))
+                    threads[-1].start()
 
-    tcp_in_p = Process(target = tcp_in_daemon, args = (peers,))
-    tcp_in_p.start()
+            for thread in threads[:]:
+                if not thread.is_alive():
+                    threads.remove(thread)
 
-    udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udp_sock.bind(('', BROADCAST_PORT))
-
-    found_data = [FOUND_PEER, tcp_addr]
-    found_data = pickle.dumps(found_data)
-    while True:
-        data, addr = udp_sock.recvfrom(1024)
-        data = pickle.loads(data)
-        if data[0] == FIND_PEER:
-            if data[1] not in peers:
-                peers.append(data[1])
-            udp_sock.sendto(found_data, addr)
-
+        if event.is_set():
+            for thread in threads:
+                thread.join()
+            return
 
 # Main function
 def main():
-    # Start daemon process for updating most recent blockchains from peers
-    bc_daemon_p = Process(target = udp_daemon, args = ())
-    bc_daemon_p.start()
+    try:
+        event = Event()
+        # Start daemon process for updating most recent blockchains from peers
+        bc_daemon_p = Thread(target=bc_daemon, args=(event,))
+        bc_daemon_p.start()
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        event.set()
+        bc_daemon_p.join()
+        return
 
 if __name__ == '__main__':
     main()
     # phase_one()
     # phase_two()
     # phase_three()
-
-    # block = Block_Phase_One(DESIRED_CANDIDATES, DESIRED_VOTERS, 'shane')
-    # blockchain = Blockchain(block)
-    # id = blockchain.get_id()
-    # file_name = "../blockchains/phase_one/blockchain{}.pkl".format(id)
-    # with open(file_name, 'wb') as blockchain_file:
-    #     pickle.dump(blockchain, blockchain_file)

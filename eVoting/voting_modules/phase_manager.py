@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from teamEvoting import (
-    block,
-    blockchain
+from eVoting.data_structures import (
+    PhaseOneBlock,
+    Blockchain
 )
 
 

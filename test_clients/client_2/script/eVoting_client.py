@@ -3,10 +3,8 @@
 import os
 import glob
 
-from teamEvoting import (
-    voting_module,
-    daemon
-)
+from eVoting.voting_modules import PhaseManager
+from eVoting.network import Daemon
 
 import time
 
@@ -27,14 +25,20 @@ def main():
     # Delete any existing blockchains
     delete_blockchains()
     # Start daemon for sharing blockchains with peers
-    daemon_t = daemon.Daemon()
+    daemon_t = Daemon()
     daemon_t.start()
+    # Initialize a PhaseManager
+    pm = PhaseManager()
+    # Start phase one
+    # pm.phase_one()
 
     while True:
         try:
+            print 'test2'
             time.sleep(1)
         except KeyboardInterrupt, e:
             daemon_t.event.set()
+            print 'test11'
             break
 
 # Method for handling direct script calls

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 
-class Block_Phase_One:
+class PhaseOneBlock:
 
     def __init__(self, candidates, voters, voter):
         self.candidates = candidates
@@ -18,7 +18,7 @@ class Block_Phase_One:
         return self.voters
 
 
-class Block_Phase_Two:
+class PhaseTwoBlock:
 
     def __init__(self, candidate):
         self.candidate = candidate
@@ -27,7 +27,7 @@ class Block_Phase_Two:
         return self.candidate
 
 
-class Block_Phase_Three:
+class PhaseThreeBlock:
 
     def __init__(self, tally):
         self.tally = tally

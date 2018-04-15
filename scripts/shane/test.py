@@ -1,16 +1,10 @@
-import hashlib as hasher
-import random
-import time
 
-start_time = time.time()
+from threading import Lock
 
-data = []
 
-for i in range(1000000):
-    value = str(random.randint(1000000000, 2000000000))
-    sha = hasher.sha256()
-    sha.update(str(value))
-    data.append(sha.hexdigest())
+if __name__ == '__main__':
+    main()
 
-end_time = time.time()
-print end_time - start_time
+    # what exception does a lock throw when locked and non blocking, error thrown when releasing an unlocked lock
+
+    # limit print statements to only before and after locks

@@ -2,7 +2,9 @@
 
 from setuptools import setup
 
-setup(name='teamEvoting',
-      packages=['teamEvoting'],
-      package_dir={'': 'src'}
+setup(name='eVoting',
+      packages=['eVoting',
+                'eVoting.data_structures',
+                'eVoting.network',
+                'eVoting.voting_modules']
      )

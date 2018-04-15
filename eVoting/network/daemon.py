@@ -11,9 +11,9 @@ from random import randint
 import cPickle as pickle
 import glob
 
-from teamEvoting.server import (
-    SERVER_ADDRESS,
-    HEARTBEAT_TIMER
+from .server import (
+    HEARTBEAT_TIMER,
+    SERVER_ADDRESS
 )
 
 class Daemon:
@@ -59,6 +59,7 @@ class Daemon:
         # Iterate through sending blockchains to peer, requesting blockchains
         # from peers, and requesting peers from the server
         while True:
+            print 'test1'
             # Listen for peers
             # If peer pings, call client_handler to handle the request
             try:
@@ -68,27 +69,36 @@ class Daemon:
             # If no peer pings, handle timeout exception
             except socket.timeout, e:
                 pass
+            print 'test3'
             # Iterate once per heartbeat
             if timer+self.heartbeat <= time():
                 timer += self.heartbeat
                 # Request peers from server
                 Thread(target=self.sync_peers).start()
                 # Cycle through peers
+                print 'test24'
                 self.peers_lock.acquire()
+                print 'test25'
                 peers = self.peers[:]
+                print 'test26'
                 self.peers_lock.release()
+                print 'test27'
                 for peer in peers:
                     # If peer is not self
                     # then request blockchains from peer
                     if peer != self.server_tcp_addr:
                         Thread(target=self.get_blockchains,
                                args=(peer,)).start()
+            print 'test4'
             # Set event to kill all threads
+            print self.event.is_set()
             if self.event.is_set():
+                print 'test5'
                 return
 
     # Method for acquiring peers from file and server
     def acquire_initial_peers(self):
+        print 'test6'
         # Request peers from server
         self.sync_peers()
         # Load peers saved to file
@@ -110,32 +120,46 @@ class Daemon:
 
     # Method for requesting peers from server
     def sync_peers(self):
+        print 'test7'
         # Initialize client tcp socket
         client_tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         client_tcp_sock.settimeout(5)
         # If server is active and responds
         try:
+            print 'test12'
             # Connect and send request for peers
             client_tcp_sock.connect(SERVER_ADDRESS)
+            print 'test21'
             msg = pickle.dumps(['request peers', self.server_tcp_addr])
+            print 'test22'
             client_tcp_sock.send(msg)
+            print 'test23'
             data = client_tcp_sock.recv(1024)
             # Save all new peers
+            print 'test20'
             self.peers_lock.acquire()
+            print 'test13'
             for peer in pickle.loads(data):
+                print 'test14'
                 if peer not in self.peers:
+                    print 'test15'
                     self.peers.append(peer)
+            print 'test16'
             self.peers_lock.release()
+            print 'test17'
         # If server does not respond
         # then do nothing
         except socket.timeout, e:
+            print 'test18'
             pass
         # Shutdown and close the client tcp socket
         client_tcp_sock.shutdown(socket.SHUT_RDWR)
         client_tcp_sock.close()
+        print 'test19'
 
     def get_blockchains(self, peer):
+        print 'test8'
         tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         tcp_sock.settimeout(5)
@@ -262,6 +286,7 @@ class Daemon:
 
     # Method for handling peer requests
     def client_handler(self, client_tcp_sock):
+        print 'test9'
         # Store data sent from peer
         data = client_tcp_sock.recv(1024)
         data = pickle.loads(data)
@@ -278,6 +303,7 @@ class Daemon:
 
     # Method for sending blockchains to the passed address
     def send_blockchains(self, client_tcp_sock):
+        print 'test10'
         # Prepare dictionary for sending blockchains
         blockchains = {'phase_one': [],
                        'phase_two': [],

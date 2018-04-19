@@ -1,14 +1,18 @@
 #!/usr/bin/env python
 
-from eVoting.voting_modules import (
-    PhaseManager
+from eVoting.data_structures import (
+    PhaseTwoBlock,
+    Blockchain
 )
 
 
-class PhaseTwo(PhaseManager):
+class PhaseTwo:
 
-    def __init__(self):
-        PhaseManager__init__.(self)
+    def __init__(self, phase_one, blockchain_locks):
+
+        self.blockchain_locks = blockchain_locks
+
+        self.phase_two_block = None
 
     # Method for processing phase two
     def start(self):

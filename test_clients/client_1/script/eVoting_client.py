@@ -40,14 +40,24 @@ def main():
     # Initialize a phase objects
     phase_manager = PhaseManager(daemon.blockchain_locks)
     # Start phase one
-    phase_manager.start_phase_one()
+    candidates = phase_manager.start_phase_one()
     print "Phase one complete!"
+    print "Accepted candidates: "
+    for candidate in candidates:
+        print candidate
+    print
     # Start phase two
     phase_manager.start_phase_two()
     print "Phase two complete!"
+    print
     # Start phase three
-    phase_manager.start_phase_three()
+    tally = phase_manager.start_phase_three()
     print "Phase three complete!"
+    print "Tally: "
+    for candidate in tally:
+        print "{}: {}".format(candidate, tally[candidate])
+    print
+    print "Vote complete!"
 
     while True:
         sleep(1)

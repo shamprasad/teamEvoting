@@ -176,7 +176,7 @@ class Daemon:
                         new_blockchains['phase_one'].remove(new_blockchain)
                         # If new blockchain is larger than local blockchain
                         # Then set boolean to replace local blockchain
-                        if new_blockchain.get_size() > blockchain.get_size():
+                        if new_blockchain.get_size() >= blockchain.get_size():
                             save = True
                 # If boolean is set to replace local blockchain
                 # Then replace local blockchain with new blockchain
@@ -209,7 +209,7 @@ class Daemon:
                         new_blockchains['phase_two'].remove(new_blockchain)
                         # If new blockchain is larger than local blockchain
                         # Then set boolean to replace local blockchain
-                        if new_blockchain.get_size() > blockchain.get_size():
+                        if new_blockchain.get_size() >= blockchain.get_size():
                             save = True
                 # If boolean is set to replace local blockchain
                 # Then replace local blockchain with new blockchain
@@ -242,7 +242,7 @@ class Daemon:
                         new_blockchains['phase_three'].remove(new_blockchain)
                         # If new blockchain is larger than local blockchain
                         # Then set boolean to replace local blockchain
-                        if new_blockchain.get_size() > blockchain.get_size():
+                        if new_blockchain.get_size() >= blockchain.get_size():
                             save = True
                 # If boolean is set to replace local blockchain
                 # Then replace local blockchain with new blockchain
@@ -253,7 +253,7 @@ class Daemon:
         # Save all new phase three blockchains
         for new_blockchain in new_blockchains['phase_three']:
             id = new_blockchain.get_id()
-            file_name = "..self.blockchain_lockss/phase_three/blockchain{}.pkl".format(id)
+            file_name = "../.blockchains/phase_three/blockchain{}.pkl".format(id)
             with open(file_name, 'wb') as blockchain_file:
                 pickle.dump(new_blockchain, blockchain_file)
         # Release lock on phase three blockchains

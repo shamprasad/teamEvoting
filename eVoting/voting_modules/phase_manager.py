@@ -26,7 +26,7 @@ class PhaseManager:
         self.candidate = None
         # Phase one block and blockchain
         # Tally
-        self.tally = {}
+        self.tally = None
         self.phase_one_block = None
         self.phase_one_blockchain = None
         self.phase_one_blockchain_file = None
@@ -49,10 +49,11 @@ class PhaseManager:
         self.input_voter_name()
         # Create block with desired candidates
         self.phase_one_block = PhaseOneBlock(self.desired_candidates, self.desired_voters, self.voter)
-        status = "voter hasn't appended this blockchain"
-        # Get phase one blockchain from file
-        self.get_phase_one_blockchain()
         while True:
+            # Get phase one blockchain from file
+            self.get_phase_one_blockchain()
+            # Check status of phase one completion
+            status = self.check_phase_one_completion()
             # If voter has not appended the accepted blockchain
             # then append block to accepted blockchain
             # and save blockchain to file
@@ -60,17 +61,14 @@ class PhaseManager:
                 self.append_block_to_phase_one_blockchain()
                 # Save phase one blockchain to file
                 self.set_phase_one_blockchain()
-            # Check status of phase one completion
-            status = self.check_phase_one_completion()
             # If all desired voters have voted
             # then finish phase one
             # else get phase one blockchain
-            if status == "all voters have voted":
-                return
+            elif status == "all voters have voted":
+                return self.phase_one_blockchain.get_chain()[0].get_candidates()
             # else wait then get phase one blockchain
             else:
                 sleep(5)
-                self.get_phase_one_blockchain()
 
     # Method for acquiring voter's name
     def input_voter_name(self):
@@ -95,7 +93,7 @@ class PhaseManager:
         file_names = glob.glob("../.blockchains/phase_one/blockchain*.pkl")
         # If no phase one blockchains found
         if len(file_names) == 0:
-            # Create blockchain with desired candidates
+            # Create phase one blockchain
             self.phase_one_blockchain = Blockchain()
             # Save accepted blockchain file name
             id = self.phase_one_blockchain.get_id()
@@ -144,9 +142,9 @@ class PhaseManager:
                 if match == False:
                     match = True
                 # If blockchain matches desired candidates and is larger than
-                # prior blockchain which matches desired candidates
+                # or equal to prior blockchain which matches desired candidates
                 # then save blockchain and blockchain file name
-                elif blockchain.get_size() > largest_chain_size:
+                elif blockchain.get_size() >= largest_chain_size:
                     self.phase_one_blockchain_file = file_name
                     largest_chain_size = blockchain.get_size()
                     self.phase_one_blockchain = blockchain
@@ -203,10 +201,11 @@ class PhaseManager:
         self.input_vote()
         # Create block with desired candidate
         self.phase_two_block = PhaseTwoBlock(self.candidate, self.voter)
-        status = "voter hasn't appended this blockchain"
-        # Get phase two blockchain from file
-        self.get_phase_two_blockchain()
         while True:
+            # Get phase two blockchain from file
+            self.get_phase_two_blockchain()
+            # Check status of phase one completion
+            status = self.check_phase_two_completion()
             # If voter has not appended the accepted blockchain
             # then append block to accepted blockchain
             # and save blockchain to file
@@ -214,17 +213,14 @@ class PhaseManager:
                 self.append_block_to_phase_two_blockchain()
                 # Save phase two blockchain to file
                 self.set_phase_two_blockchain()
-            # Check status of phase one completion
-            status = self.check_phase_two_completion()
             # If all desired voters have voted
             # then finish phase one
             # else get phase one blockchain
-            if status == "all voters have voted":
+            elif status == "all voters have voted":
                 return
             # else wait then get phase one blockchain
             else:
                 sleep(5)
-                self.get_phase_two_blockchain()
 
     # Method for acquiring vote
     def input_vote(self):
@@ -265,9 +261,9 @@ class PhaseManager:
                 with open(file_name, 'rb') as blockchain_file:
                     try:
                         blockchain = pickle.load(blockchain_file)
-                        # If blockchain is larger than prior blockchain
+                        # If blockchain is larger than or equal to prior blockchain
                         # then save blockchain and blockchain file name
-                        if blockchain.get_size() > largest_chain_size:
+                        if blockchain.get_size() >= largest_chain_size:
                             self.phase_two_blockchain_file = file_name
                             largest_chain_size = blockchain.get_size()
                             self.phase_two_blockchain = blockchain
@@ -314,55 +310,57 @@ class PhaseManager:
 
     # Method for processing phase three
     def start_phase_three(self):
-        # Input voter's name
+        # Tally votes from phase two blockchain
         self.tally_votes()
-        # Create block with desired candidates
+        # Create block with tally
         self.phase_three_block = PhaseThreeBlock(self.tally, self.voter)
-        status = "voter hasn't appended this blockchain"
-        # Get phase one blockchain from file
-        self.get_phase_three_blockchain()
         while True:
+            # Get phase three blockchain from file
+            self.get_phase_three_blockchain()
+            # Check status of phase three completion
+            status = self.check_phase_three_completion()
             # If voter has not appended the accepted blockchain
             # then append block to accepted blockchain
             # and save blockchain to file
             if status == "voter hasn't appended this blockchain":
                 self.append_block_to_phase_three_blockchain()
-                # Save phase one blockchain to file
+                # Save phase three blockchain to file
                 self.set_phase_three_blockchain()
-            # Check status of phase one completion
-            status = self.check_phase_three_completion()
             # If all desired voters have voted
             # then finish phase one
             # else get phase one blockchain
-            if status == "all voters have voted":
-                return
-            # else wait then get phase one blockchain
+            elif status == "all voters have voted":
+                return self.phase_three_blockchain.get_chain()[0].get_tally()
+            # else wait then get phase three blockchain
+            # wait to allow time for the blockchains to be shared among peers
             else:
                 sleep(5)
-                self.get_phase_three_blockchain()
 
     # Tally the votes in the accepted phase two blockchain
     def tally_votes(self):
+        # Initialize dictionary with 0 votes for each candidate
+        self.tally = {}
         for candidate in self.desired_candidates:
-            tally[candidate] = 0
-        for block in self.phase_two_blockchain:
-            tally[block.get_candidate] += 1
+            self.tally[candidate] = 0
+        # Tally votes for each candidate
+        for block in self.phase_two_blockchain.get_chain():
+            self.tally[block.get_candidate()] += 1
 
     # Method for loading the currently accepted phase three blockchain
     def get_phase_three_blockchain(self):
         # Find all saved phase three blockchains
         self.blockchain_locks[2].acquire()
         file_names = glob.glob("../.blockchains/phase_three/blockchain*.pkl")
-        # If no phase one blockchains found
+        # If no phase three blockchains found
         if len(file_names) == 0:
-            # Create blockchain with desired candidates
+            # Create phase three blockchain
             self.phase_three_blockchain = Blockchain()
             # Save accepted blockchain file name
             id = self.phase_three_blockchain.get_id()
             self.phase_three_blockchain_file = "../.blockchains/phase_three/blockchain{}.pkl".format(id)
         # If blockchains are found
         else:
-            # Search for largest blockchain with desired candidates
+            # Search for largest blockchain with same tally
             largest_chain_size = 0
             largest_file_name = ""
             # Cycle through all blockchains
@@ -381,32 +379,33 @@ class PhaseManager:
                         if candidate not in self.desired_candidates:
                             match = False
                             break
-                        # Verify candidate has the same tally
-                        elif tally[candidate] != block.get_tally[candidate]:
+                        # Verify candidate has the same tally as local tally
+                        elif self.tally[candidate] != block.get_tally()[candidate]:
                             match = False
                             break
+                    # If tally isn't a match with local tally
+                    # then stop verifying blockchain
                     if not match:
                         break
                 # If candidates don't match desired candidates,
                 # then move to next blockchain
                 if match == False:
                     match = True
-                # If blockchain matches desired candidates and is larger than
-                # prior blockchain which matches desired candidates
+                # If blockchain matches tally and is larger than or equal to
+                # prior blockchain which matches tally
                 # then save blockchain and blockchain file name
-                elif blockchain.get_size() > largest_chain_size:
+                elif blockchain.get_size() >= largest_chain_size:
                     self.phase_three_blockchain_file = file_name
                     largest_chain_size = blockchain.get_size()
                     self.phase_three_blockchain = blockchain
-            # If no blockchains with candidates that match desired candidates
-            # or no blockchains with tallies that match own tally
+            # If no blockchains with tally that match local tally
             # then save new blockchain and new blockchain file name
             if largest_chain_size == 0:
-                # Create blockchain with desired candidates
+                # Create phase three blockchain
                 self.phase_three_blockchain = Blockchain()
                 # Save accepted blockchain file name
                 id = self.phase_three_blockchain.get_id()
-                self.phase_one_blockchain_file = "../.blockchains/phase_three/blockchain{}.pkl".format(id)
+                self.phase_three_blockchain_file = "../.blockchains/phase_three/blockchain{}.pkl".format(id)
         self.blockchain_locks[2].release()
 
     # Method to append block to blockchain
@@ -415,10 +414,10 @@ class PhaseManager:
 
     # Save blockchain to file
     def set_phase_three_blockchain(self):
-        self.blockchain_locks[1].acquire()
-        with open(self.phase_two_blockchain_file, 'wb') as file_name:
-            pickle.dump(self.phase_two_blockchain, file_name)
-        self.blockchain_locks[1].release()
+        self.blockchain_locks[2].acquire()
+        with open(self.phase_three_blockchain_file, 'wb') as file_name:
+            pickle.dump(self.phase_three_blockchain, file_name)
+        self.blockchain_locks[2].release()
 
     # Method to check if phase three is complete
     def check_phase_three_completion(self):

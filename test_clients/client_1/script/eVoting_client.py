@@ -45,8 +45,9 @@ def main():
     # Start phase two
     phase_manager.start_phase_two()
     print "Phase two complete!"
-    # # Start phase three
-    # phase_manager.start_phase_three()
+    # Start phase three
+    phase_manager.start_phase_three()
+    print "Phase three complete!"
 
     while True:
         sleep(1)

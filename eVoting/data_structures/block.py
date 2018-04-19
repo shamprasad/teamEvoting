@@ -33,8 +33,12 @@ class PhaseTwoBlock:
 
 class PhaseThreeBlock:
 
-    def __init__(self, tally):
+    def __init__(self, tally, voter):
         self.tally = tally
+        self.voter = voter
 
     def get_tally(self):
         return self.tally
+
+    def get_voter(self):
+        return self.voter

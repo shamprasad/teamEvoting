@@ -3,7 +3,10 @@
 import os
 import glob
 
-from eVoting.voting_modules import PhaseManager
+from eVoting.voting_modules import (
+    PhaseOne
+    PhaseTwo
+)
 from eVoting.network import Daemon
 
 import time
@@ -27,10 +30,13 @@ def main():
     # Start daemon for sharing blockchains with peers
     daemon_t = Daemon()
     daemon_t.start()
-    # Initialize a PhaseManager
-    pm = PhaseManager()
+    # Initialize a phase objects
+    phase_one = PhaseOne()
+    phase_two = PhaseTwo()
     # Start phase one
-    # pm.phase_one()
+    phase_one.start()
+    # Start phase two
+    phase_two.start()
 
     while True:
         try:

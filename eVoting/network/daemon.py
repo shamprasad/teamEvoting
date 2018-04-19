@@ -16,13 +16,15 @@ from .server import (
     SERVER_ADDRESS
 )
 
+
+# Locks for controlling access to the saved blockchains
+BLOCKCHAIN_LOCKS = [Lock(), Lock(), Lock()]
+
 class Daemon:
     # Initialize daemon
     def __init__(self):
         self.event = Event()
         self.heartbeat = HEARTBEAT_TIMER/10.
-        # Locks for controlling access to the saved blockchains
-        self.blockchain_locks = [Lock(), Lock(), Lock()]
         # Lock for controlling access to the peers list
         self.peers_lock = Lock()
         # Stores known peers' addresses
@@ -185,7 +187,7 @@ class Daemon:
         except pickle.UnpicklingError:
             return
         # Acquire lock on phase one blockchains
-        self.blockchain_locks[0].acquire()
+        BLOCKCHAIN_LOCKS[0].acquire()
         filed_blockchains = glob.glob("../blockchains/phase_one/blockchain*.pkl")
         # For each blockchain received from peer
         for new_blockchain in new_blockchains['phase_one'][:]:
@@ -216,9 +218,9 @@ class Daemon:
             with open(file_name, 'wb') as blockchain_file:
                 pickle.dump(new_blockchain, blockchain_file)
         # Release lock on phase one blockchains
-        self.blockchain_locks[0].release()
+        BLOCKCHAIN_LOCKS[0].release()
         # Acquire lock on phase two blockchains
-        self.blockchain_locks[1].acquire()
+        BLOCKCHAIN_LOCKS[1].acquire()
         filed_blockchains = glob.glob("../blockchains/phase_two/blockchain*.pkl")
         # For each blockchain received from peer
         for new_blockchain in new_blockchains['phase_two'][:]:
@@ -249,9 +251,9 @@ class Daemon:
             with open(file_name, 'wb') as blockchain_file:
                 pickle.dump(new_blockchain, blockchain_file)
         # Release lock on phase two blockchains
-        self.blockchain_locks[1].release()
+        BLOCKCHAIN_LOCKS[1].release()
         # Acquire lock on phase three blockchains
-        self.blockchain_locks[2].acquire()
+        BLOCKCHAIN_LOCKS[2].acquire()
         filed_blockchains = glob.glob("../blockchains/phase_three/blockchain*.pkl")
         # For each blockchain received from peer
         for new_blockchain in new_blockchains['phase_three'][:]:
@@ -282,7 +284,7 @@ class Daemon:
             with open(file_name, 'wb') as blockchain_file:
                 pickle.dump(new_blockchain, blockchain_file)
         # Release lock on phase three blockchains
-        self.blockchain_locks[2].release()
+        BLOCKCHAIN_LOCKS[2].release()
 
     # Method for handling peer requests
     def client_handler(self, client_tcp_sock):
@@ -309,7 +311,7 @@ class Daemon:
                        'phase_two': [],
                        'phase_three': []}
         # Acquire lock on phase one blockchains
-        self.blockchain_locks[0].acquire()
+        BLOCKCHAIN_LOCKS[0].acquire()
         # Load all phase one blockchains into dictionary
         phase_one_bc = glob.glob("../blockchains/phase_one/blockchain*.pkl")
         if len(phase_one_bc) > 0:
@@ -317,9 +319,9 @@ class Daemon:
                 with open(bc, 'rb') as blockchain_file:
                     blockchains['phase_one'].append(pickle.load(blockchain_file))
         # Release lock on phase one blockchains
-        self.blockchain_locks[0].release()
+        BLOCKCHAIN_LOCKS[0].release()
         # Acquire lock on phase two blockchains
-        self.blockchain_locks[1].acquire()
+        BLOCKCHAIN_LOCKS[1].acquire()
         # Load all phase two blockchains into dictionary
         phase_two_bc = glob.glob("../blockchains/phase_two/blockchain*.pkl")
         if len(phase_two_bc) > 0:
@@ -327,9 +329,9 @@ class Daemon:
                 with open(bc, 'rb') as blockchain_file:
                     blockchains['phase_two'].append(pickle.load(blockchain_file))
         # Release lock on phase two blockchains
-        self.blockchain_locks[1].release()
+        BLOCKCHAIN_LOCKS[1].release()
         # Acquire lock on phase three blockchains
-        self.blockchain_locks[2].acquire()
+        BLOCKCHAIN_LOCKS[2].acquire()
         # Load all phase three blockchains into dictionary
         phase_three_bc = glob.glob("../blockchains/phase_three/blockchain*.pkl")
         if len(phase_three_bc) > 0:
@@ -337,7 +339,7 @@ class Daemon:
                 with open(bc, 'rb') as blockchain_file:
                     blockchains['phase_three'].append(pickle.load(blockchain_file))
         # Release lock on phase three blockchains
-        self.blockchain_locks[2].release()
+        BLOCKCHAIN_LOCKS[2].release()
         # Send blockchains to peer who requested
         try:
             bytes_sent = client_tcp_sock.send(pickle.dumps(blockchains))

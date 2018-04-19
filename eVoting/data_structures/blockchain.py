@@ -5,10 +5,10 @@ from random import randint
 
 class Blockchain:
 
-    def __init__(self, block):
+    def __init__(self):
         self.id = randint(0, 10000)
-        self.size = 1
-        self.chain = [block]
+        self.size = 0
+        self.chain = []
 
     def add_block(self, block):
         self.chain.append(block)

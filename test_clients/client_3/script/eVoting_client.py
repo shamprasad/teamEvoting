@@ -42,8 +42,9 @@ def main():
     # Start phase one
     phase_manager.start_phase_one()
     print "Phase one complete!"
-    # # Start phase two
-    # phase_manager.start_phase_two()
+    # Start phase two
+    phase_manager.start_phase_two()
+    print "Phase two complete!"
     # # Start phase three
     # phase_manager.start_phase_three()
 

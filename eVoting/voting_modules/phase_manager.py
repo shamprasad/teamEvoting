@@ -6,6 +6,8 @@ import cPickle as pickle
 
 from eVoting.data_structures import (
     PhaseOneBlock,
+    PhaseTwoBlock,
+    PhaseThreeBlock,
     Blockchain
 )
 
@@ -155,8 +157,8 @@ class PhaseManager:
                 id = self.phase_one_blockchain.get_id()
                 self.phase_one_blockchain_file = "../.blockchains/phase_one/blockchain{}.pkl".format(id)
         self.blockchain_locks[0].release()
-        
-    # Method to append block to bockchain
+
+    # Method to append block to blockchain
     def append_block_to_phase_one_blockchain(self):
         self.phase_one_blockchain.add_block(self.phase_one_block)
 
@@ -193,6 +195,116 @@ class PhaseManager:
 #######          Phase Two       ########
 #########################################
 
+    # Method for processing phase two
+    def start_phase_two(self):
+        # Input vote
+        self.input_vote()
+        # Create block with desired candidate
+        self.phase_two_block = PhaseTwoBlock(self.candidate, self.voter)
+        status = "voter hasn't appended this blockchain"
+        # Get phase two blockchain from file
+        self.get_phase_two_blockchain()
+        while True:
+            # If voter has not appended the accepted blockchain
+            # then append block to accepted blockchain
+            # and save blockchain to file
+            if status == "voter hasn't appended this blockchain":
+                self.append_block_to_phase_two_blockchain()
+                # Save phase two blockchain to file
+                self.set_phase_two_blockchain()
+            # Check status of phase one completion
+            status = self.check_phase_two_completion()
+            # If all desired voters have voted
+            # then finish phase one
+            # else get phase one blockchain
+            if status == "all voters have voted":
+                return
+            # else wait then get phase one blockchain
+            else:
+                sleep(5)
+                self.get_phase_two_blockchain()
+
+    # Method for acquiring vote
+    def input_vote(self):
+        while True:
+            # Get vote
+            candidate = raw_input("Enter vote: ")
+            # If candidate is a desired candidate
+            # then save candidate
+            if candidate.lower() in self.DESIRED_VOTERS:
+                self.candidate = candidate.lower()
+                return
+            # If name is not a desired candidate
+            # then ask again for candidate
+            else:
+                print 'Candidate not a desired candidate.'
+                continue
+
+    # Method for loading the currently accepted phase two blockchain
+    def get_phase_two_blockchain(self):
+        # Find all saved phase two blockchains
+        self.blockchain_locks[1].acquire()
+        file_names = glob.glob("../.blockchains/phase_two/blockchain*.pkl")
+        # If no phase two blockchains found
+        if len(file_names) == 0:
+            # Create blockchain with desired candidates
+            self.phase_two_blockchain = Blockchain()
+            # Save accepted blockchain file name
+            id = self.phase_two_blockchain.get_id()
+            self.phase_two_blockchain_file = "../.blockchains/phase_two/blockchain{}.pkl".format(id)
+        # If blockchains are found
+        else:
+            # Search for largest blockchain with desired candidates
+            largest_chain_size = 0
+            largest_file_name = ""
+            # Cycle through all blockchains
+            for file_name in file_names:
+                # View blockchain
+                with open(file_name, 'rb') as blockchain_file:
+                    try:
+                        blockchain = pickle.load(blockchain_file)
+                        # If blockchain is larger than prior blockchain
+                        # then save blockchain and blockchain file name
+                        if blockchain.get_size() > largest_chain_size:
+                            self.phase_two_blockchain_file = file_name
+                            largest_chain_size = blockchain.get_size()
+                            self.phase_two_blockchain = blockchain
+                    except EOFError, e:
+                        pass
+        self.blockchain_locks[1].release()
+
+    # Method to append block to blockchain
+    def append_block_to_phase_two_blockchain(self):
+        self.phase_two_blockchain.add_block(self.phase_two_block)
+
+    # Save blockchain to file
+    def set_phase_two_blockchain(self):
+        self.blockchain_locks[1].acquire()
+        with open(self.phase_two_blockchain_file, 'wb') as file_name:
+            pickle.dump(self.phase_two_blockchain, file_name)
+        self.blockchain_locks[1].release()
+
+    # Method to check if phase two is complete
+    def check_phase_two_completion(self):
+        # Initialize data structure for checking if every desired voter is in
+        # the accepted blockchain
+        voters = {}
+        # Add every desired voter to blockchain and set to false
+        for voter in self.DESIRED_VOTERS:
+            voters[voter] = False
+        # Set true for every voter in blockchain
+        for block in self.phase_two_blockchain.get_chain():
+            voters[block.get_voter()] = True
+        # If every voter is true
+        # then return true
+        # else return false
+        for voter in voters:
+            if not voters[voter]:
+                if voter == self.voter:
+                    return "voter hasn't appended this blockchain"
+                else:
+                    return "still waiting for another voter"
+        return "all voters have voted"
 
 #########################################
 ######          Phase Three       #######

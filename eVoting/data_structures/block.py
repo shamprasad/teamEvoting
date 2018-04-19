@@ -20,11 +20,15 @@ class PhaseOneBlock:
 
 class PhaseTwoBlock:
 
-    def __init__(self, candidate):
+    def __init__(self, candidate, voter):
         self.candidate = candidate
+        self.voter = voter
 
     def get_candidate(self):
         return self.candidate
+
+    def get_voter(self):
+        return self.voter
 
 
 class PhaseThreeBlock:

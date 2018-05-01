@@ -390,14 +390,21 @@ class PhaseManager:
 
     # Tally the votes in the accepted phase two blockchain
     def tally_votes(self):
+        # Initialize dictionary to keep track of which voters voted for whom/what
+        voters = {}
+        for voter in self.desired_voters:
+            voters[voter] = ""
         # Initialize dictionary with 0 votes for each candidate
         self.tally = {}
         for candidate in self.desired_candidates:
             self.tally[candidate] = 0
-        # Tally votes for each candidate
-        for block in self.phase_two_blockchain.get_chain():
-            for transaction in block.get_transactions():
-                self.tally[transaction.get_candidate()] += 1
+        # Tally votes for each candidate from end to beginning of blockchain
+        for block in self.phase_two_blockchain.get_chain()[::-1]:
+            for transaction in block.get_transactions()[::-1]:
+                # Only count each voter's last vote
+                if voters[transaction.get_voter()] == "":
+                    voters[transaction.get_voter()] = transaction.get_candidate()
+                    self.tally[transaction.get_candidate()] += 1
 
     # Method for loading the currently accepted phase three blockchain
     def get_phase_three_blockchain(self):

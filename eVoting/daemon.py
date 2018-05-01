@@ -157,7 +157,8 @@ class Daemon:
         # Deserialize blockchains into dictionary
         try:
             new_blockchains = pickle.loads(data)
-        except pickle.UnpicklingError:
+        except pickle.UnpicklingError, e:
+            print e
             return
         # Acquire lock on phase one blockchains
         self.blockchain_locks[0].acquire()
@@ -176,7 +177,10 @@ class Daemon:
                         new_blockchains['phase_one'].remove(new_blockchain)
                         # If new blockchain is larger than local blockchain
                         # Then set boolean to replace local blockchain
-                        if new_blockchain.get_size() >= blockchain.get_size():
+                        if new_blockchain.get_work() > blockchain.get_work():
+                            save = True
+                        elif new_blockchain.get_work() == blockchain.get_work() and \
+                                len(new_blockchain.get_transactions_block().get_transactions()) > len(blockchain.get_transactions_block().get_transactions()):
                             save = True
                 # If boolean is set to replace local blockchain
                 # Then replace local blockchain with new blockchain
@@ -187,7 +191,7 @@ class Daemon:
         # Save all new phase one blockchains
         for new_blockchain in new_blockchains['phase_one']:
             id = new_blockchain.get_id()
-            file_name = "../.blockchains/phase_one/blockchain{}.pkl".format(id)
+            file_name = "../.blockchains/phase_one/blockchain{:04d}.pkl".format(id)
             with open(file_name, 'wb') as blockchain_file:
                 pickle.dump(new_blockchain, blockchain_file)
         # Release lock on phase one blockchains
@@ -209,7 +213,10 @@ class Daemon:
                         new_blockchains['phase_two'].remove(new_blockchain)
                         # If new blockchain is larger than local blockchain
                         # Then set boolean to replace local blockchain
-                        if new_blockchain.get_size() >= blockchain.get_size():
+                        if new_blockchain.get_work() > blockchain.get_work():
+                            save = True
+                        elif new_blockchain.get_work() == blockchain.get_work() and \
+                                len(new_blockchain.get_transactions_block().get_transactions()) > len(blockchain.get_transactions_block().get_transactions()):
                             save = True
                 # If boolean is set to replace local blockchain
                 # Then replace local blockchain with new blockchain
@@ -220,7 +227,7 @@ class Daemon:
         # Save all new phase two blockchains
         for new_blockchain in new_blockchains['phase_two']:
             id = new_blockchain.get_id()
-            file_name = "../.blockchains/phase_two/blockchain{}.pkl".format(id)
+            file_name = "../.blockchains/phase_two/blockchain{:04d}.pkl".format(id)
             with open(file_name, 'wb') as blockchain_file:
                 pickle.dump(new_blockchain, blockchain_file)
         # Release lock on phase two blockchains
@@ -242,7 +249,10 @@ class Daemon:
                         new_blockchains['phase_three'].remove(new_blockchain)
                         # If new blockchain is larger than local blockchain
                         # Then set boolean to replace local blockchain
-                        if new_blockchain.get_size() >= blockchain.get_size():
+                        if new_blockchain.get_work() > blockchain.get_work():
+                            save = True
+                        elif new_blockchain.get_work() == blockchain.get_work() and \
+                                len(new_blockchain.get_transactions_block().get_transactions()) > len(blockchain.get_transactions_block().get_transactions()):
                             save = True
                 # If boolean is set to replace local blockchain
                 # Then replace local blockchain with new blockchain
@@ -253,7 +263,7 @@ class Daemon:
         # Save all new phase three blockchains
         for new_blockchain in new_blockchains['phase_three']:
             id = new_blockchain.get_id()
-            file_name = "../.blockchains/phase_three/blockchain{}.pkl".format(id)
+            file_name = "../.blockchains/phase_three/blockchain{:04d}.pkl".format(id)
             with open(file_name, 'wb') as blockchain_file:
                 pickle.dump(new_blockchain, blockchain_file)
         # Release lock on phase three blockchains

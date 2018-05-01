@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 
-class PhaseOneBlock:
+class PhaseOneTransaction:
 
     def __init__(self, candidates, voters, voter):
         self.candidates = candidates
@@ -18,7 +18,7 @@ class PhaseOneBlock:
         return self.voters
 
 
-class PhaseTwoBlock:
+class PhaseTwoTransaction:
 
     def __init__(self, candidate, voter):
         self.candidate = candidate
@@ -31,7 +31,7 @@ class PhaseTwoBlock:
         return self.voter
 
 
-class PhaseThreeBlock:
+class PhaseThreeTransaction:
 
     def __init__(self, tally, voter):
         self.tally = tally

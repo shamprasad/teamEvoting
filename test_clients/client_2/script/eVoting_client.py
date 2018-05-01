@@ -4,8 +4,11 @@ import os
 import glob
 from time import sleep
 
-from eVoting.voting_modules import PhaseManager
-from eVoting.network import Daemon
+from eVoting import (
+    Daemon,
+    Miner,
+    PhaseManager
+)
 
 
 # Method for deleting all locally saved blockchains
@@ -37,7 +40,10 @@ def main():
     # Start daemon for sharing blockchains with peers
     daemon = Daemon()
     daemon.start()
-    # Initialize a phase objects
+    # Initialize a miner
+    miner = Miner(daemon.blockchain_locks)
+    miner.start()
+    # Initialize a phase manager
     phase_manager = PhaseManager(daemon.blockchain_locks)
     # Start phase one
     candidates = phase_manager.start_phase_one()

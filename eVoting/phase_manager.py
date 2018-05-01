@@ -402,7 +402,7 @@ class PhaseManager:
         for block in self.phase_two_blockchain.get_chain()[::-1]:
             for transaction in block.get_transactions()[::-1]:
                 # Only count each voter's last vote
-                if voters[transaction.get_voter()] == "":
+                if voters[transaction.get_voter()] == "" and transaction.get_voter() in self.desired_voters:
                     voters[transaction.get_voter()] = transaction.get_candidate()
                     self.tally[transaction.get_candidate()] += 1
 

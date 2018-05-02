@@ -47,9 +47,7 @@ class Daemon:
         # Acquire peers from saved peers and server
         self.acquire_initial_peers()
         # Request blockchains from peers
-        self.peers_lock.acquire()
         peers = self.peers[:]
-        self.peers_lock.release()
         for peer in peers:
             # If peer is not self
             # then request blockchains from peer
@@ -96,7 +94,6 @@ class Daemon:
             return
         with open(file_name, 'rb') as peers_file:
             file_peers = pickle.load(peers_file)
-            self.peers_lock.acquire()
             for peer in file_peers[:]:
                 if peer in self.peers:
                     try:
@@ -105,10 +102,10 @@ class Daemon:
                         pass
             # Append peers saved in file to those received from server
             self.peers.append(file_peers)
-            self.peers_lock.release()
 
     # Method for requesting peers from server
     def sync_peers(self):
+        self.peers_lock.acquire()
         # Initialize client tcp socket
         client_tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -121,11 +118,9 @@ class Daemon:
             client_tcp_sock.send(msg)
             data = client_tcp_sock.recv(1024)
             # Save all new peers
-            self.peers_lock.acquire()
             for peer in pickle.loads(data):
                 if peer not in self.peers:
                     self.peers.append(peer)
-            self.peers_lock.release()
         # If server does not respond
         # then do nothing
         except socket.timeout, e:
@@ -133,6 +128,7 @@ class Daemon:
         # Shutdown and close the client tcp socket
         client_tcp_sock.shutdown(socket.SHUT_RDWR)
         client_tcp_sock.close()
+        self.peers_lock.release()
 
     def get_blockchains(self, peer):
         tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -187,7 +183,6 @@ class Daemon:
                 if save:
                     with open(filed_blockchain, 'wb') as blockchain_file:
                         pickle.dump(new_blockchain, blockchain_file)
-                    save = False
         # Save all new phase one blockchains
         for new_blockchain in new_blockchains['phase_one']:
             id = new_blockchain.get_id()
@@ -223,7 +218,6 @@ class Daemon:
                 if save:
                     with open(filed_blockchain, 'wb') as blockchain_file:
                         pickle.dump(new_blockchain, blockchain_file)
-                    save = False
         # Save all new phase two blockchains
         for new_blockchain in new_blockchains['phase_two']:
             id = new_blockchain.get_id()
@@ -259,7 +253,6 @@ class Daemon:
                 if save:
                     with open(filed_blockchain, 'wb') as blockchain_file:
                         pickle.dump(new_blockchain, blockchain_file)
-                    save = False
         # Save all new phase three blockchains
         for new_blockchain in new_blockchains['phase_three']:
             id = new_blockchain.get_id()
@@ -295,30 +288,27 @@ class Daemon:
         self.blockchain_locks[0].acquire()
         # Load all phase one blockchains into dictionary
         phase_one_bc = glob.glob("../.blockchains/phase_one/blockchain*.pkl")
-        if len(phase_one_bc) > 0:
-            for bc in phase_one_bc:
-                with open(bc, 'rb') as blockchain_file:
-                    blockchains['phase_one'].append(pickle.load(blockchain_file))
+        for bc in phase_one_bc:
+            with open(bc, 'rb') as blockchain_file:
+                blockchains['phase_one'].append(pickle.load(blockchain_file))
         # Release lock on phase one blockchains
         self.blockchain_locks[0].release()
         # Acquire lock on phase two blockchains
         self.blockchain_locks[1].acquire()
         # Load all phase two blockchains into dictionary
         phase_two_bc = glob.glob("../.blockchains/phase_two/blockchain*.pkl")
-        if len(phase_two_bc) > 0:
-            for bc in phase_two_bc:
-                with open(bc, 'rb') as blockchain_file:
-                    blockchains['phase_two'].append(pickle.load(blockchain_file))
+        for bc in phase_two_bc:
+            with open(bc, 'rb') as blockchain_file:
+                blockchains['phase_two'].append(pickle.load(blockchain_file))
         # Release lock on phase two blockchains
         self.blockchain_locks[1].release()
         # Acquire lock on phase three blockchains
         self.blockchain_locks[2].acquire()
         # Load all phase three blockchains into dictionary
         phase_three_bc = glob.glob("../.blockchains/phase_three/blockchain*.pkl")
-        if len(phase_three_bc) > 0:
-            for bc in phase_three_bc:
-                with open(bc, 'rb') as blockchain_file:
-                    blockchains['phase_three'].append(pickle.load(blockchain_file))
+        for bc in phase_three_bc:
+            with open(bc, 'rb') as blockchain_file:
+                blockchains['phase_three'].append(pickle.load(blockchain_file))
         # Release lock on phase three blockchains
         self.blockchain_locks[2].release()
         # Send blockchains to peer who requested
@@ -326,4 +316,4 @@ class Daemon:
             bytes_sent = client_tcp_sock.send(pickle.dumps(blockchains))
             # print bytes_sent
         except socket.error, e:
-            pass
+            print e

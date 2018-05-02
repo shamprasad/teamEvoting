@@ -9,7 +9,6 @@ from .transaction import (
     PhaseTwoTransaction,
     PhaseThreeTransaction
 )
-from .block import Block
 from .blockchain import Blockchain
 
 
@@ -53,6 +52,7 @@ class PhaseManager:
                                                          self.desired_voters,
                                                          self.voter)
         while True:
+            self.blockchain_locks[0].acquire()
             # Get phase one blockchain from file
             self.get_phase_one_blockchain()
             # Check status of phase one completion
@@ -64,10 +64,11 @@ class PhaseManager:
                 self.append_transaction_to_phase_one_blockchain()
                 # Save phase one blockchain to file
                 self.set_phase_one_blockchain()
+            self.blockchain_locks[0].release()
             # If all desired voters have voted
             # then finish phase one
             # else get phase one blockchain
-            elif status == "all voters have voted":
+            if status == "all voters have voted":
                 return self.phase_one_blockchain.get_chain()[0].get_transactions()[0].get_candidates()
             # else wait then get phase one blockchain
             else:
@@ -92,7 +93,6 @@ class PhaseManager:
     # Method for loading the currently accepted phase one blockchain
     def get_phase_one_blockchain(self):
         # Find all saved phase one blockchains
-        self.blockchain_locks[0].acquire()
         file_names = glob.glob("../.blockchains/phase_one/blockchain*.pkl")
         # If no phase one blockchains found
         if len(file_names) == 0:
@@ -175,7 +175,6 @@ class PhaseManager:
                 # Save accepted blockchain file name
                 id = self.phase_one_blockchain.get_id()
                 self.phase_one_blockchain_file = "../.blockchains/phase_one/blockchain{:04d}.pkl".format(id)
-        self.blockchain_locks[0].release()
 
     # Method to check if phase one is complete
     def check_phase_one_completion(self):
@@ -218,10 +217,8 @@ class PhaseManager:
 
     # Save blockchain to file
     def set_phase_one_blockchain(self):
-        self.blockchain_locks[0].acquire()
         with open(self.phase_one_blockchain_file, 'wb') as file_name:
             pickle.dump(self.phase_one_blockchain, file_name)
-        self.blockchain_locks[0].release()
 
 #########################################
 #######          Phase Two       ########
@@ -232,8 +229,10 @@ class PhaseManager:
         # Input vote
         self.input_vote()
         # Create transaction with desired candidate
-        self.phase_two_transaction = PhaseTwoTransaction(self.candidate, self.voter)
+        self.phase_two_transaction = PhaseTwoTransaction(self.candidate,
+                                                         self.voter)
         while True:
+            self.blockchain_locks[1].acquire()
             # Get phase two blockchain from file
             self.get_phase_two_blockchain()
             # Check status of phase one completion
@@ -245,10 +244,11 @@ class PhaseManager:
                 self.append_transaction_to_phase_two_blockchain()
                 # Save phase two blockchain to file
                 self.set_phase_two_blockchain()
+            self.blockchain_locks[1].release()
             # If all desired voters have voted
             # then finish phase one
             # else get phase one blockchain
-            elif status == "all voters have voted":
+            if status == "all voters have voted":
                 return
             # else wait then get phase one blockchain
             else:
@@ -273,7 +273,6 @@ class PhaseManager:
     # Method for loading the currently accepted phase two blockchain
     def get_phase_two_blockchain(self):
         # Find all saved phase two blockchains
-        self.blockchain_locks[1].acquire()
         file_names = glob.glob("../.blockchains/phase_two/blockchain*.pkl")
         # If no phase two blockchains found
         if len(file_names) == 0:
@@ -308,7 +307,6 @@ class PhaseManager:
                             largest_transactions_block = len(blockchain.get_transactions_block().get_transactions())
                     except EOFError, e:
                         pass
-        self.blockchain_locks[1].release()
 
     # Method to check if phase two is complete
     def check_phase_two_completion(self):
@@ -351,10 +349,8 @@ class PhaseManager:
 
     # Save blockchain to file
     def set_phase_two_blockchain(self):
-        self.blockchain_locks[1].acquire()
         with open(self.phase_two_blockchain_file, 'wb') as file_name:
             pickle.dump(self.phase_two_blockchain, file_name)
-        self.blockchain_locks[1].release()
 
 #########################################
 ######          Phase Three       #######
@@ -365,8 +361,10 @@ class PhaseManager:
         # Tally votes from phase two blockchain
         self.tally_votes()
         # Create transaction with tally
-        self.phase_three_transaction = PhaseThreeTransaction(self.tally, self.voter)
+        self.phase_three_transaction = PhaseThreeTransaction(self.tally,
+                                                             self.voter)
         while True:
+            self.blockchain_locks[2].acquire()
             # Get phase three blockchain from file
             self.get_phase_three_blockchain()
             # Check status of phase three completion
@@ -378,10 +376,11 @@ class PhaseManager:
                 self.append_block_to_phase_three_blockchain()
                 # Save phase three blockchain to file
                 self.set_phase_three_blockchain()
+            self.blockchain_locks[2].release()
             # If all desired voters have voted
             # then finish phase one
             # else get phase one blockchain
-            elif status == "all voters have voted":
+            if status == "all voters have voted":
                 return self.phase_three_blockchain.get_chain()[0].get_transactions()[0].get_tally()
             # else wait then get phase three blockchain
             # wait to allow time for the blockchains to be shared among peers
@@ -409,7 +408,6 @@ class PhaseManager:
     # Method for loading the currently accepted phase three blockchain
     def get_phase_three_blockchain(self):
         # Find all saved phase three blockchains
-        self.blockchain_locks[2].acquire()
         file_names = glob.glob("../.blockchains/phase_three/blockchain*.pkl")
         # If no phase three blockchains found
         if len(file_names) == 0:
@@ -482,7 +480,6 @@ class PhaseManager:
                 # Save accepted blockchain file name
                 id = self.phase_three_blockchain.get_id()
                 self.phase_three_blockchain_file = "../.blockchains/phase_three/blockchain{:04d}.pkl".format(id)
-        self.blockchain_locks[2].release()
 
     # Method to check if phase three is complete
     def check_phase_three_completion(self):
@@ -525,7 +522,5 @@ class PhaseManager:
 
     # Save blockchain to file
     def set_phase_three_blockchain(self):
-        self.blockchain_locks[2].acquire()
         with open(self.phase_three_blockchain_file, 'wb') as file_name:
             pickle.dump(self.phase_three_blockchain, file_name)
-        self.blockchain_locks[2].release()

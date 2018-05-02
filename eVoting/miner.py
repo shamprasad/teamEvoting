@@ -56,23 +56,23 @@ class Miner:
                 if len(transactions_block.get_transactions()) > 0:
                     nonce = 0
                     transactions = pickle.dumps(transactions_block.get_transactions())
-                    # if len(blockchain.get_chain()) != 0:
-                    #     if blockchain.get_work() / len(blockchain.get_chain()) < self.pow_time:
+                    blockchain_blocks = blockchain.get_chain()
+                    if len(blockchain_blocks) == 0:
+                        transactions_block.set_prev_hash(0)
+                    else:
+                        transactions_block.set_prev_hash(blockchain_blocks[-1].get_hash())
+                    # if len(blockchain_blocks) != 0:
+                    #     if blockchain.get_work() / len(blockchain_blocks) < self.pow_time:
                     #         blockchain.increase_difficulty()
                     #     else:
                     #         blockchain.decrease_difficulty()
                     time1 = time()
                     while True:
-                        curr_str = transactions + str(nonce)
+                        curr_str = transactions + str(transactions_block.get_prev_hash()) + str(nonce)
                         hash = hashlib.sha1(curr_str).hexdigest()
                         if hash.startswith(blockchain.get_difficulty()):
                             transactions_block.set_nonce(nonce)
                             transactions_block.set_hash(hash)
-                            blockchain_blocks = blockchain.get_chain()
-                            if len(blockchain_blocks) == 0:
-                                transactions_block.set_prev_hash(0)
-                            else:
-                                transactions_block.set_prev_hash(blockchain_blocks[-1].get_hash())
                             blockchain.transactions_to_chain()
                             blockchain.add_work(time() - time1)
                             save = True

@@ -18,6 +18,9 @@ class Block:
     def get_hash(self):
         return self.hash
 
+    def get_prev_hash(self):
+        return self.prev_hash
+
     def set_hash(self, hash):
         self.hash = hash
 
